@@ -6,6 +6,7 @@ Resources:
     Type: AWS::SNS::Topic
     Properties:
       FifoTopic: true
+      TopicName: MessageProcessor-SnsFifoTopic.fifo
   SqsRegularQueue:
     Type: AWS::SQS::Queue
   SqsFifoQueue:
