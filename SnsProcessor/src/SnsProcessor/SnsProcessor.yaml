@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Message processing test Lambda for SNS
+
+Parameters:
+  BucketName:
+    Type: String
+  ObjectKey:
+    Type: String
+
+Resources:
+  EventHandlerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function to handle SNS messages for Message processing tests
+      FunctionName: MessageProcessor-SnsProcessor
+      Code:
+        S3Bucket: !Ref BucketName
+        S3Key: !Ref ObjectKey
+      Handler: SnsProcessor::SnsProcessor.Function::FunctionHandler
+      Runtime: dotnetcore3.1
+      MemorySize: 512
+      Timeout: 300
+      TracingConfig:
+        Mode: Active
+      Role: !GetAtt EventHandlerRole.Arn
+
+  EventHandlerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'MessageProcessor-SnsProcessor-${AWS::Region}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  EventHandlerFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt EventHandlerFunction.Arn
+      Principal: sns.amazonaws.com
+      SourceArn: !ImportValue MessageProcessorSnsTopicArn
+
+  SnsEventSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !GetAtt EventHandlerFunction.Arn
+      Protocol: lambda
+      TopicArn: !ImportValue MessageProcessorSnsTopicArn

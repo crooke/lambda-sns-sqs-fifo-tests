@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+  SnsTopic:
+    Type: AWS::SNS::Topic
+  SqsRegularQueue:
+    Type: AWS::SQS::Queue
+  SqsFifoQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      FifoQueue: true
+  SnsSubscriptionRegularQueue:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      Endpoint: !Ref SqsRegularQueue
+      TopicArn: !Ref SnsTopic
+  SnsSubscriptionFifoQueue:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      Endpoint: !Ref SqsFifoQueue
+      TopicArn: !Ref SnsTopic
+
+Outputs:
+  SnsTopicArn:
+    Value: !Ref SnsTopic
+    Export:
+      Name: MessageProcessorSnsTopicArn
+  SqsRegularQueueUrl:
+    Description: Regular Queue Url
+    Value: !Ref SqsRegularQueue
+    Export:
+      Name: MessageProcessorRegularQueueUrl
+  SqsRegularQueueArn:
+    Description: Regular Queue Arn
+    Value: !GetAtt SqsRegularQueue.Arn
+    Export:
+      Name: MessageProcessorSqsRegularQueueArn
+  SqsFifoQueueUrl:
+    Description: FIFO Queue Url
+    Value: !Ref SqsFifoQueue
+    Export:
+      Name: MessageProcessorSqsFifoQueueUrl
+  SqsFifoQueueArn:
+    Description: FIFO Queue Arn
+    Value: !GetAtt SqsFifoQueue.Arn
+    Export:
+      Name: MessageProcessorSqsFifoQueueArn

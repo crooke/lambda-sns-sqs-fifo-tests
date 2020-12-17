@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: SQS processor function for Message Processing tests
+
+Parameters:
+  BucketName:
+    Type: String
+  ObjectKey:
+    Type: String
+
+Resources:
+  SqsProcessorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function to handle SQS messages for Message processing tests
+      FunctionName: MessageProcessor-SqsProcessor
+      Code:
+        S3Bucket: !Ref BucketName
+        S3Key: !Ref ObjectKey
+      Handler: 'SqsProcessor::SqsProcessor.Function::FunctionHandler'
+      Runtime: dotnetcore3.1
+      MemorySize: 512
+      Timeout: 900
+      TracingConfig:
+        Mode: Active
+      Role: !GetAtt QueueProcessorRole.Arn
+
+  QueueProcessorRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub 'MessageProcessor-SqsProcessor-${AWS::Region}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole
+
+  SQSTrigger:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 10
+      Enabled: true
+      EventSourceArn: !ImportValue MessageProcessorSqsRegularQueueArn
+      FunctionName: !Ref SqsProcessorFunction
