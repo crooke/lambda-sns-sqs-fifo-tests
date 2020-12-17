@@ -26,21 +26,11 @@ Outputs:
     Value: !Ref SnsTopic
     Export:
       Name: MessageProcessorSnsTopicArn
-  SqsRegularQueueUrl:
-    Description: Regular Queue Url
-    Value: !Ref SqsRegularQueue
-    Export:
-      Name: MessageProcessorRegularQueueUrl
   SqsRegularQueueArn:
     Description: Regular Queue Arn
     Value: !GetAtt SqsRegularQueue.Arn
     Export:
       Name: MessageProcessorSqsRegularQueueArn
-  SqsFifoQueueUrl:
-    Description: FIFO Queue Url
-    Value: !Ref SqsFifoQueue
-    Export:
-      Name: MessageProcessorSqsFifoQueueUrl
   SqsFifoQueueArn:
     Description: FIFO Queue Arn
     Value: !GetAtt SqsFifoQueue.Arn
