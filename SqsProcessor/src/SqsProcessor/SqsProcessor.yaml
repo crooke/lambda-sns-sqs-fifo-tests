@@ -19,7 +19,7 @@ Resources:
       Handler: 'SqsProcessor::SqsProcessor.Function::FunctionHandler'
       Runtime: dotnetcore3.1
       MemorySize: 512
-      Timeout: 900
+      Timeout: 30
       TracingConfig:
         Mode: Active
       Role: !GetAtt QueueProcessorRole.Arn
