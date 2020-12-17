@@ -12,13 +12,13 @@ Resources:
     Type: AWS::SNS::Subscription
     Properties:
       Protocol: sqs
-      Endpoint: !Ref SqsRegularQueue
+      Endpoint: !GetAtt SqsRegularQueue.Arn
       TopicArn: !Ref SnsTopic
   SnsSubscriptionFifoQueue:
     Type: AWS::SNS::Subscription
     Properties:
       Protocol: sqs
-      Endpoint: !Ref SqsFifoQueue
+      Endpoint: !GetAtt SqsFifoQueue.Arn
       TopicArn: !Ref SnsTopic
 
 Outputs:
