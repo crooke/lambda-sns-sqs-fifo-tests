@@ -6,15 +6,6 @@ Parameters:
     Type: String
   ObjectKey:
     Type: String
-  UseFifoQueue:
-    Type: String
-    Description: One of "true" or "false". If "true", this Lambda will map to the FIFO SQS queue instead of the normal SQS queue.
-    Default: 'false'
-
-Conditions:
-  UseFifoQueue: !Equals 
-    - !Ref UseFifoQueue
-    - 'true'
 
 Resources:
   SqsProcessorFunction:
@@ -54,8 +45,13 @@ Resources:
     Properties:
       BatchSize: 10
       Enabled: true
-      EventSourceArn: !If
-        - UseFifoQueue
-        - !ImportValue MessageProcessorSqsFifoQueueArn
-        - !ImportValue MessageProcessorSqsRegularQueueArn
+      EventSourceArn: !ImportValue MessageProcessorSqsRegularQueueArn
+      FunctionName: !Ref SqsProcessorFunction
+
+  FifoSQSTrigger:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 10
+      Enabled: true
+      EventSourceArn: !ImportValue MessageProcessorSqsFifoQueueArn
       FunctionName: !Ref SqsProcessorFunction
