@@ -2,6 +2,10 @@ AWSTemplateFormatVersion: 2010-09-09
 Resources:
   SnsTopic:
     Type: AWS::SNS::Topic
+  SnsFifoTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      FifoTopic: true
   SqsRegularQueue:
     Type: AWS::SQS::Queue
   SqsFifoQueue:
@@ -19,7 +23,7 @@ Resources:
     Properties:
       Protocol: sqs
       Endpoint: !GetAtt SqsFifoQueue.Arn
-      TopicArn: !Ref SnsTopic
+      TopicArn: !Ref SnsFifoTopic
 
 Outputs:
   SnsTopicArn:
