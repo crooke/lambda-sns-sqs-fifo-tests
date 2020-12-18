@@ -70,6 +70,8 @@ Resources:
       KeySchema:
         - AttributeName: pk
           KeyType: HASH
+      StreamSpecification:
+        StreamViewType: 'NEW_AND_OLD_IMAGES'
 
 Outputs:
   SnsTopicArn:
@@ -86,3 +88,8 @@ Outputs:
     Value: !GetAtt SqsFifoQueue.Arn
     Export:
       Name: MessageProcessorSqsFifoQueueArn
+  StreamArn:
+    Description: ARN of DynamoDB Stream
+    Value: !GetAtt Table.StreamArn
+    Export:
+      Name: MessageProcessorTableStreamArn

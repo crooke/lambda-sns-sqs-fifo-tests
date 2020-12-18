@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: MessageProcessor StreamHandler Lambda
+Parameters:
+  BucketName:
+    Type: String
+  ObjectKey:
+    Type: String
+Resources:
+  LogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: /aws/lambda/MessageProcessor-StreamHandler
+      RetentionInDays: 14
+
+  StreamHandlerFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: Lambda function to handle MessageProcessor DynamoDB Stream
+      FunctionName: MessageProcessor-StreamHandler
+      Code:
+        S3Bucket: !Ref BucketName
+        S3Key: !Ref ObjectKey
+      Handler: 'StreamHandler::StreamHandler.Function::FunctionHandlerAsync'
+      Runtime: dotnetcore3.1
+      MemorySize: 512
+      Timeout: 300
+      TracingConfig:
+        Mode: Active
+      Role: !GetAtt StreamHandlerRole.Arn
+
+  DynamoStreamTrigger:
+    Type: 'AWS::Lambda::EventSourceMapping'
+    Properties:
+      Enabled: true
+      EventSourceArn: !ImportValue MessageProcessorTableStreamArn
+      FunctionName: !Ref StreamHandlerFunction
+      StartingPosition: LATEST
+
+  StreamHandlerPolicy:
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      ManagedPolicyName: !Sub 'MessageProcessor-StreamHandler-${AWS::Region}'
+      Description: Policy for MessageProcessor StreamHandler
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - 'dynamodb:ListStreams'
+            Effect: Allow
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'dynamodb:*Item'
+              - 'dynamodb:Query'
+            Resource:
+              - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/message-processor'
+              - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/message-processor/index/*'
+          - Effect: Allow
+            Action:
+              - 'dynamodb:DescribeStream'
+              - 'dynamodb:Get*'
+            Resource:
+              - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/message-processor/stream/*'
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+            Resource:
+              - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/MessageProcessor-StreamHandler'
+              - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/MessageProcessor-StreamHandler:*'
+          - Action:
+              - 'xray:PutTraceSegments'
+              - 'xray:PutTelemetryRecords'
+            Effect: Allow
+            Resource: '*'
+
+  StreamHandlerRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub 'MessageProcessor-StreamHandler-${AWS::Region}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - !Ref StreamHandlerPolicy
