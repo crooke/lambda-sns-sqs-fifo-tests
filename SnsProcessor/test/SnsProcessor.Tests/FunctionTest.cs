@@ -4,10 +4,13 @@ using Xunit;
 using Amazon.Lambda.TestUtilities;
 using Amazon.Lambda.SNSEvents;
 using Amazon.SimpleNotificationService;
+using Amazon.DynamoDBv2;
 using System.Linq;
 using System.Diagnostics;
 using Xunit.Abstractions;
 using System;
+using Amazon.DynamoDBv2.Model;
+using System.Threading;
 
 namespace SnsProcessor.Tests
 {
@@ -54,18 +57,93 @@ namespace SnsProcessor.Tests
         {
             System.Environment.SetEnvironmentVariable("AWS_PROFILE", "dev-enc");
             var snsClient = new AmazonSimpleNotificationServiceClient();
+            var dynamoClient = new AmazonDynamoDBClient();
             var topicArn = "arn:aws:sns:us-east-1:099157907345:MessageProcessor-SnsTopic-1ACCA72168YXE";
-            var numConcurrentTasks = 5_000;
+            var messagesToSend = 5000;
+            var messagesSent = 0;
 
-            output.WriteLine($"Start time: {DateTimeOffset.UtcNow}");
+            var startTime = DateTimeOffset.UtcNow.ToString("o");
+            var testId = Guid.NewGuid().ToString();
+            var put1 = dynamoClient.PutItemAsync(new PutItemRequest
+            {
+                TableName = "message-processor",
+                Item = new Dictionary<string, AttributeValue>
+                {
+                    { "pk", new AttributeValue($"SnsProcessor|{testId}") },
+                    { "TestId", new AttributeValue(testId) },
+                    { "StartTime", new AttributeValue(startTime) },
+                    { "MessageCount", new AttributeValue { N = "0" }},
+                    { "MessagesToSend", new AttributeValue { N = messagesToSend.ToString() }},
+                }
+            });
+            var put2 = dynamoClient.PutItemAsync(new PutItemRequest
+            {
+                TableName = "message-processor",
+                Item = new Dictionary<string, AttributeValue>
+                {
+                    { "pk", new AttributeValue($"SqsProcessor|{testId}") },
+                    { "TestId", new AttributeValue(testId) },
+                    { "StartTime", new AttributeValue(startTime) },
+                    { "MessageCount", new AttributeValue { N = "0" }},
+                    { "MessagesToSend", new AttributeValue { N = messagesToSend.ToString() }},
+                }
+            });
+            await Task.WhenAll(put1, put2);
+
+            output.WriteLine($"Start time: {startTime}");
             var stopwatch = Stopwatch.StartNew();
 
-            var tasks = Enumerable.Range(0, numConcurrentTasks).Select(i => snsClient.PublishAsync(topicArn, $"Message #{i}"));
-            await Task.WhenAll(tasks);
+            var publishTasks = Enumerable.Range(0, messagesToSend).Select(async i =>
+            {
+                try
+                {
+                    var message = System.Text.Json.JsonSerializer.Serialize(new Function.TestMessage
+                    {
+                        StartTime = DateTimeOffset.Parse(startTime),
+                        TestId = testId
+                    });
+                    await snsClient.PublishAsync(topicArn, message);
+                    Interlocked.Increment(ref messagesSent);
+                }
+                catch (Exception e)
+                {
+                    output.WriteLine("Exception: {0} BaseException: {1}", e.Message, e.GetBaseException());
+                }
+            });
+            await Task.WhenAll(publishTasks);
 
             stopwatch.Stop();
+            output.WriteLine($"Test ID: {testId}");
             output.WriteLine($"End time: {DateTimeOffset.UtcNow}");
             output.WriteLine($"Time elapsed: {stopwatch.ElapsedMilliseconds} ms");
+
+            var update1 = dynamoClient.UpdateItemAsync(new UpdateItemRequest
+            {
+                TableName = "message-processor",
+                Key = new Dictionary<string, AttributeValue>
+                {
+                    { "pk", new AttributeValue($"SnsProcessor|{testId}") }
+                },
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":sent", new AttributeValue { N = messagesSent.ToString() }},
+                },
+                UpdateExpression = "SET MessagesSent = :sent"
+            });
+            var update2 = dynamoClient.UpdateItemAsync(new UpdateItemRequest
+            {
+                TableName = "message-processor",
+                Key = new Dictionary<string, AttributeValue>
+                {
+                    { "pk", new AttributeValue($"SqsProcessor|{testId}") }
+                },
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":sent", new AttributeValue { N = messagesSent.ToString() }},
+                },
+                UpdateExpression = "SET MessagesSent = :sent"
+            });
+            await Task.WhenAll(update1, update2);
         }
     }
 }
