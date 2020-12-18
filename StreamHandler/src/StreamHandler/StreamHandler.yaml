@@ -35,6 +35,11 @@ Resources:
       EventSourceArn: !ImportValue MessageProcessorTableStreamArn
       FunctionName: !Ref StreamHandlerFunction
       StartingPosition: LATEST
+      MaximumRetryAttempts: 3
+      BisectBatchOnFunctionError: true
+  
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
 
   StreamHandlerPolicy:
     Type: 'AWS::IAM::ManagedPolicy'
