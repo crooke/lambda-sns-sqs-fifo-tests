@@ -78,6 +78,10 @@ Resources:
               - 'xray:PutTelemetryRecords'
             Effect: Allow
             Resource: '*'
+          - Action:
+              - 'cloudwatch:GetMetricStatistics'
+            Resource: '*'
+            Effect: Allow
 
   StreamHandlerRole:
     Type: 'AWS::IAM::Role'
