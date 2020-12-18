@@ -57,6 +57,17 @@ Resources:
               aws:SourceArn: !Ref SnsFifoTopic
       Queues:
       - !Ref SqsFifoQueue
+  Table:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: message-processor
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
 
 Outputs:
   SnsTopicArn:

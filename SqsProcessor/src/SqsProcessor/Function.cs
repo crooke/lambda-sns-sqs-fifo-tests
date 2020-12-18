@@ -2,6 +2,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using Amazon.Lambda.Core;
 using Amazon.Lambda.SQSEvents;
+using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.Model;
+using System.Collections.Generic;
+using System;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
@@ -10,6 +14,8 @@ namespace SqsProcessor
 {
     public class Function
     {
+        private readonly AmazonDynamoDBClient amazonDynamoDB;
+
         /// <summary>
         /// Default constructor. This constructor is used by Lambda to construct the instance. When invoked in a Lambda environment
         /// the AWS credentials will come from the IAM role associated with the function and the AWS region will be set to the
@@ -17,6 +23,7 @@ namespace SqsProcessor
         /// </summary>
         public Function()
         {
+            amazonDynamoDB = new AmazonDynamoDBClient();
         }
 
         /// <summary>
@@ -36,8 +43,33 @@ namespace SqsProcessor
         {
             context.Logger.LogLine($"Processed message {message.Body}");
 
-            // Simulate a DynamoDB request (single-digit ms response)
-            await Task.Delay(6);
+            var messageBody = System.Text.Json.JsonSerializer.Deserialize<SnsMessageBody>(message.Body);
+
+            await amazonDynamoDB.UpdateItemAsync(new UpdateItemRequest
+            {
+                TableName = "message-processor",
+                Key = new Dictionary<string, AttributeValue>
+                {
+                    { "pk", new AttributeValue($"SqsProcessor|{messageBody.Message.TestId}") }
+                },
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":incr", new AttributeValue { N = "1" }},
+                    { ":end", new AttributeValue(DateTimeOffset.UtcNow.ToString("o"))}
+                },
+                UpdateExpression = "SET Count = Count + :incr, SET EndTime = :end"
+            });
+        }
+
+        private class SnsMessageBody
+        {
+            public TestMessage Message { get; set; }
+        }
+
+        private class TestMessage
+        {
+            public string TestId { get; set; }
+            public System.DateTimeOffset StartTime { get; set; }
         }
     }
 }
