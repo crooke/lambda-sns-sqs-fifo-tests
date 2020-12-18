@@ -43,14 +43,14 @@ namespace SqsProcessor
         {
             context.Logger.LogLine($"Processed message {message.Body}");
 
-            var messageBody = System.Text.Json.JsonSerializer.Deserialize<SnsMessageBody>(message.Body);
+            var messageBody = System.Text.Json.JsonSerializer.Deserialize<TestMessage>(message.Body);
 
             await amazonDynamoDB.UpdateItemAsync(new UpdateItemRequest
             {
                 TableName = "message-processor",
                 Key = new Dictionary<string, AttributeValue>
                 {
-                    { "pk", new AttributeValue($"SqsProcessor|{messageBody.Message.TestId}") }
+                    { "pk", new AttributeValue($"SqsProcessor|{messageBody.TestId}") }
                 },
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {

@@ -19,12 +19,14 @@ Resources:
       Protocol: sqs
       Endpoint: !GetAtt SqsRegularQueue.Arn
       TopicArn: !Ref SnsTopic
+      RawMessageDelivery: true
   SnsSubscriptionFifoQueue:
     Type: AWS::SNS::Subscription
     Properties:
       Protocol: sqs
       Endpoint: !GetAtt SqsFifoQueue.Arn
       TopicArn: !Ref SnsFifoTopic
+      RawMessageDelivery: true
   QueuePolicy:
     Type: AWS::SQS::QueuePolicy
     Properties:
