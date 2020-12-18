@@ -154,7 +154,7 @@ namespace SnsProcessor.Tests
             var snsClient = new AmazonSimpleNotificationServiceClient();
             var dynamoClient = new AmazonDynamoDBClient();
             var topicArn = "arn:aws:sns:us-east-1:099157907345:MessageProcessor-SnsFifoTopic.fifo";
-            var messagesToSend = 4000;
+            var messagesToSend = 1000;
             var messagesSent = 0;
 
             var startTime = DateTimeOffset.UtcNow.ToString("o");

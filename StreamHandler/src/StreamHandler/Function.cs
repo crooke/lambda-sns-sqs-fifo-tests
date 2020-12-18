@@ -61,11 +61,17 @@ namespace StreamHandler
                     {
                         TableName = "message-processor",
                         Key = record.Dynamodb.Keys,
+                        ExpressionAttributeNames = new Dictionary<string, string>
+                        {
+                            { "#duration", "Duration" }
+                        },
                         ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                         {
-                            { ":stats", new AttributeValue { M = StatsToMap(stats) }},
+                            { ":concurrent", new AttributeValue { N = stats["ConcurrentExecutionsMax"].ToString() }},
+                            { ":duration", new AttributeValue { N = stats["DurationAverage"].ToString() }},
+                            { ":invocations", new AttributeValue { N = stats["InvocationsSum"].ToString() }},
                         },
-                        UpdateExpression = "SET LambdaStats = :stats"
+                        UpdateExpression = "SET ConcurrentExecutions = :concurrent, #duration = :duration, Invocations = :invocations"
                     });
                 }
             }
