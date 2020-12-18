@@ -27,6 +27,8 @@ Resources:
       TracingConfig:
         Mode: Active
       Role: !GetAtt StreamHandlerRole.Arn
+      DeadLetterConfig:
+        TargetArn: !GetAtt DeadLetterQueue.Arn
 
   DynamoStreamTrigger:
     Type: 'AWS::Lambda::EventSourceMapping'
@@ -82,6 +84,11 @@ Resources:
               - 'cloudwatch:GetMetricStatistics'
             Resource: '*'
             Effect: Allow
+          - Action:
+              - sqs:SendMessage
+            Effect: Allow
+            Resource:
+              - !GetAtt DeadLetterQueue.Arn
 
   StreamHandlerRole:
     Type: 'AWS::IAM::Role'
