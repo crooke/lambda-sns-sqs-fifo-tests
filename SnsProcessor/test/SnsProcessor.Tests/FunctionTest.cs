@@ -11,6 +11,7 @@ using Xunit.Abstractions;
 using System;
 using Amazon.DynamoDBv2.Model;
 using System.Threading;
+using Amazon.SimpleNotificationService.Model;
 
 namespace SnsProcessor.Tests
 {
@@ -59,7 +60,7 @@ namespace SnsProcessor.Tests
             var snsClient = new AmazonSimpleNotificationServiceClient();
             var dynamoClient = new AmazonDynamoDBClient();
             var topicArn = "arn:aws:sns:us-east-1:099157907345:MessageProcessor-SnsTopic-1ACCA72168YXE";
-            var messagesToSend = 5000;
+            var messagesToSend = 1000;
             var messagesSent = 0;
 
             var startTime = DateTimeOffset.UtcNow.ToString("o");
@@ -144,6 +145,80 @@ namespace SnsProcessor.Tests
                 UpdateExpression = "SET MessagesSent = :sent"
             });
             await Task.WhenAll(update1, update2);
+        }
+
+        [Fact]
+        public async Task FifoBenchmarkTestAsync()
+        {
+            System.Environment.SetEnvironmentVariable("AWS_PROFILE", "dev-enc");
+            var snsClient = new AmazonSimpleNotificationServiceClient();
+            var dynamoClient = new AmazonDynamoDBClient();
+            var topicArn = "arn:aws:sns:us-east-1:099157907345:MessageProcessor-SnsFifoTopic.fifo";
+            var messagesToSend = 4000;
+            var messagesSent = 0;
+
+            var startTime = DateTimeOffset.UtcNow.ToString("o");
+            var testId = Guid.NewGuid().ToString();
+            await dynamoClient.PutItemAsync(new PutItemRequest
+            {
+                TableName = "message-processor",
+                Item = new Dictionary<string, AttributeValue>
+                {
+                    { "pk", new AttributeValue($"SqsProcessor|{testId}") },
+                    { "TestId", new AttributeValue(testId) },
+                    { "StartTime", new AttributeValue(startTime) },
+                    { "MessageCount", new AttributeValue { N = "0" }},
+                    { "MessagesToSend", new AttributeValue { N = messagesToSend.ToString() }},
+                    { "IsFifo", new AttributeValue { BOOL = true }},
+                }
+            });
+
+            output.WriteLine($"Start time: {startTime}");
+            var stopwatch = Stopwatch.StartNew();
+
+            var publishTasks = Enumerable.Range(0, messagesToSend).Select(async i =>
+            {
+                try
+                {
+                    var message = System.Text.Json.JsonSerializer.Serialize(new Function.TestMessage
+                    {
+                        StartTime = DateTimeOffset.Parse(startTime),
+                        TestId = testId,
+                    });
+                    await snsClient.PublishAsync(new PublishRequest
+                    {
+                        TopicArn = topicArn,
+                        Message = message,
+                        MessageGroupId = testId,
+                        MessageDeduplicationId = $"{testId}#{i}"
+                    });
+                    Interlocked.Increment(ref messagesSent);
+                }
+                catch (Exception e)
+                {
+                    output.WriteLine("Exception: {0} BaseException: {1}", e.Message, e.GetBaseException());
+                }
+            });
+            await Task.WhenAll(publishTasks);
+
+            stopwatch.Stop();
+            output.WriteLine($"Test ID: {testId}");
+            output.WriteLine($"End time: {DateTimeOffset.UtcNow}");
+            output.WriteLine($"Time elapsed: {stopwatch.ElapsedMilliseconds} ms");
+
+            await dynamoClient.UpdateItemAsync(new UpdateItemRequest
+            {
+                TableName = "message-processor",
+                Key = new Dictionary<string, AttributeValue>
+                {
+                    { "pk", new AttributeValue($"SqsProcessor|{testId}") }
+                },
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":sent", new AttributeValue { N = messagesSent.ToString() }},
+                },
+                UpdateExpression = "SET MessagesSent = :sent"
+            });
         }
     }
 }
