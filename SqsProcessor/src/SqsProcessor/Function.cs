@@ -57,7 +57,7 @@ namespace SqsProcessor
                     { ":incr", new AttributeValue { N = "1" }},
                     { ":end", new AttributeValue(DateTimeOffset.UtcNow.ToString("o"))}
                 },
-                UpdateExpression = "SET Count = Count + :incr, SET EndTime = :end"
+                UpdateExpression = "SET MessageCount = MessageCount + :incr, EndTime = :end"
             });
         }
 

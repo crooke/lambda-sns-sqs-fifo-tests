@@ -39,7 +39,24 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaDynamoDBExecutionRole
+        - !Ref FunctionPolicy
+  
+  FunctionPolicy:
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      ManagedPolicyName: !Sub 'MessageProcessor-SqsProcessor-${AWS::Region}'
+      Description: Policy for SqsProcessor function
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'dynamodb:*Item'
+              - 'dynamodb:Query'
+              - 'dynamodb:DescribeTable'
+            Resource:
+              - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/message-processor'
+              - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/message-processor/*'
 
   SQSTrigger:
     Type: AWS::Lambda::EventSourceMapping
